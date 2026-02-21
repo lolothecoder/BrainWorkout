@@ -1,27 +1,25 @@
 import pygame
+import math
 import random
 import socket
 import threading
 
 # --- UDP EEG setup ---
-UDP_IP = ""        # listen on all interfaces
-UDP_PORT = 12345   # replace with your port
+UDP_IP = ""
+UDP_PORT = 1000
 BUFFER_SIZE = 1024
-
-bands = ['delta', 'theta', 'alpha', 'beta_low', 'beta_mid', 'beta_high', 'gamma']
 
 # Shared variables for EEG bands
 theta_value = 0.0
 beta_low_value = 0.0
 alpha_value = 0.0
 
-# Map EEG band (0-30) to 0-255 for RGB
-def map_band_to_color(value, min_val=0, max_val=30):
+# Map EEG band to 0-255 based on observed data range
+def map_band_to_color(value, min_val=0, max_val=60):
     value = max(min_val, min(max_val, value))
     return int((value - min_val) / (max_val - min_val) * 255)
 
 def eeg_listener():
-    """Background thread to listen for EEG UDP packets."""
     global theta_value, beta_low_value, alpha_value
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((UDP_IP, UDP_PORT))
@@ -32,17 +30,14 @@ def eeg_listener():
             message = data.decode('ascii').strip()
             values = [float(x) for x in message.split(',')]
             if len(values) >= 63:
-                # Extract average bands: indices 57-63 in 70-value payload
-                # 57→delta, 58→theta, 59→alpha, 60→beta_low, 61→beta_mid, 62→beta_high, 63→gamma
-                theta_value = values[57]      # index 57 = theta
-                alpha_value = values[58]      # index 58 = alpha
-                beta_low_value = values[59]   # index 59 = beta_low
+                theta_value = values[57]
+                alpha_value = values[58]
+                beta_low_value = values[59]
         except socket.timeout:
             continue
         except Exception as e:
             print("EEG listener error:", e)
 
-# Start EEG listener in a background thread
 threading.Thread(target=eeg_listener, daemon=True).start()
 
 # --- Pygame setup ---
@@ -53,12 +48,9 @@ pygame.display.set_caption("EEG Color Brush Art")
 
 clock = pygame.time.Clock()
 
-# Brush state
 x, y = width // 2, height // 2
 angle = 0
 brush_size = 8  # constant size
-
-# White background
 screen.fill((255, 255, 255))
 
 running = True
@@ -68,24 +60,28 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_s:
+                # Save the image when 'S' is pressed
+                pygame.image.save(screen, "eeg_brush_art.png")
+                print("Image saved as eeg_brush_art.png")
 
-    # --- Map EEG bands to RGB color ---
-    r = map_band_to_color(theta_value)
-    g = map_band_to_color(beta_low_value)
-    b = map_band_to_color(alpha_value)
+    # Map EEG bands to color
+    r = map_band_to_color(theta_value)     # Red = theta
+    g = map_band_to_color(beta_low_value) # Green = beta_low
+    b = map_band_to_color(alpha_value)    # Blue = alpha
     color = (r, g, b)
 
-    # --- Optional movement ---
+    # Movement
     speed = 4
     angle += random.uniform(-0.2, 0.2)
-    x += random.cos(angle) * speed
-    y += random.sin(angle) * speed
+    x += math.cos(angle) * speed
+    y += math.sin(angle) * speed
     x %= width
     y %= height
 
-    # --- Draw brush ---
+    # Draw brush
     pygame.draw.circle(screen, color, (int(x), int(y)), brush_size)
-
     pygame.display.flip()
 
 pygame.quit()

@@ -15,9 +15,10 @@ beta_low_value = 0.0
 alpha_value = 0.0
 
 # Map EEG band to 0-255 based on observed data range
-def map_band_to_color(value, min_val=0, max_val=60):
+def map_band_to_color(value, min_val=0, max_val=60, boost=1.5):
     value = max(min_val, min(max_val, value))
-    return int((value - min_val) / (max_val - min_val) * 255)
+    c = int((value - min_val) / (max_val - min_val) * 255 * boost)
+    return min(255, c)  # clamp to 255
 
 def eeg_listener():
     global theta_value, beta_low_value, alpha_value
@@ -73,7 +74,7 @@ while running:
     color = (r, g, b)
 
     # Movement
-    speed = 4
+    speed = 1
     angle += random.uniform(-0.2, 0.2)
     x += math.cos(angle) * speed
     y += math.sin(angle) * speed

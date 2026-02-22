@@ -12,7 +12,7 @@ clf = joblib.load("bandpower_3s_decoder.pkl")  # rename if needed
 # -------------------------
 # SETTINGS
 # -------------------------
-FILE_EDF=  r"C:/Users/ameer/OneDrive/Desktop/Job stuff/Extracullicular activities/London Neurotech Hackathon/data_Left_Right_S2/S031R04.edf"
+FILE_EDF=  r"C:\Users\loicf\Downloads\S002R04.edf"
 
 SELECTED_CHANNELS = ["C3", "Cz", "C4"]
 

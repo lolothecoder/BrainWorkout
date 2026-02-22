@@ -52,8 +52,8 @@ while True:
     C4_beta = values[beta_start + C4_idx]
 
     # --- Lateralization ---
-    alpha_diff = C3_alpha - C4_alpha
-    beta_diff  = C3_beta - C4_beta
+    alpha_diff = C3_alpha - 2*C4_alpha
+    beta_diff  = C3_beta - 2*C4_beta
 
     features = np.array([
         C3_alpha,
@@ -67,16 +67,17 @@ while True:
     # --- Predict ---
     prob_left = clf.predict_proba(features)[0][1]
 
+    """
     smoothed_prob = (
         SMOOTHING_ALPHA * smoothed_prob +
         (1 - SMOOTHING_ALPHA) * prob_left
     )
+    """
 
-    predicted_class = int(smoothed_prob > 0.5)
+    predicted_class = int(prob_left > 0.8)
     predicted_side = "LEFT" if predicted_class == 1 else "RIGHT"
 
     print(
         f"P(LEFT): {prob_left:.3f} | "
-        f"Smooth: {smoothed_prob:.3f} | "
         f"Pred: {predicted_side}"
     )

@@ -14,11 +14,32 @@ theta_value = 0.0
 beta_low_value = 0.0
 alpha_value = 0.0
 
-# Map EEG band to 0-255 based on observed data range
-def map_band_to_color(value, min_val=0, max_val=60, boost=1.5):
-    value = max(min_val, min(max_val, value))
-    c = int((value - min_val) / (max_val - min_val) * 255 * boost)
-    return min(255, c)  # clamp to 255
+
+# --- EEG → 3 Color Mapping ---
+def eeg_to_color(theta, alpha):
+    """
+    Only returns:
+    Red     = strong theta (deep relaxation)
+    Blue    = strong alpha (eyes closed)
+    Orange  = mixed state
+    """
+
+    # ---- Adjust these thresholds to your signal range ----
+    alpha_threshold = 15
+    theta_threshold = 15
+
+    # Blue → strong alpha (close eyes)
+    if alpha > alpha_threshold and theta < theta_threshold:
+        return (0, 0, 255)
+
+    # Red → strong theta
+    elif theta > theta_threshold and alpha < alpha_threshold:
+        return (255, 0, 0)
+
+    # Orange → everything else (blend state)
+    else:
+        return (255, 140, 0)
+
 
 def eeg_listener():
     global theta_value, beta_low_value, alpha_value
@@ -39,6 +60,7 @@ def eeg_listener():
         except Exception as e:
             print("EEG listener error:", e)
 
+
 threading.Thread(target=eeg_listener, daemon=True).start()
 
 # --- Pygame setup ---
@@ -51,7 +73,7 @@ clock = pygame.time.Clock()
 
 x, y = width // 2, height // 2
 angle = 0
-brush_size = 8  # constant size
+brush_size = 8
 screen.fill((255, 255, 255))
 
 running = True
@@ -63,15 +85,11 @@ while running:
             running = False
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_s:
-                # Save the image when 'S' is pressed
                 pygame.image.save(screen, "eeg_brush_art.png")
                 print("Image saved as eeg_brush_art.png")
 
-    # Map EEG bands to color
-    r = map_band_to_color(theta_value)     # Red = theta
-    g = map_band_to_color(beta_low_value) # Green = beta_low
-    b = map_band_to_color(alpha_value)    # Blue = alpha
-    color = (r, g, b)
+    # --- Get restricted EEG color ---
+    color = eeg_to_color(theta_value, alpha_value)
 
     # Movement
     speed = 1
@@ -81,7 +99,6 @@ while running:
     x %= width
     y %= height
 
-    # Draw brush
     pygame.draw.circle(screen, color, (int(x), int(y)), brush_size)
     pygame.display.flip()
 

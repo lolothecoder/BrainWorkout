@@ -15,30 +15,34 @@ beta_low_value = 0.0
 alpha_value = 0.0
 
 
-# --- EEG → 3 Color Mapping ---
-def eeg_to_color(theta, alpha):
-    """
-    Only returns:
-    Red     = strong theta (deep relaxation)
-    Blue    = strong alpha (eyes closed)
-    Orange  = mixed state
-    """
+# --- Alpha → Brush Size (2 → 20) ---
+def alpha_to_brush_size(alpha):
+    # Cap alpha between 0 and 30
+    alpha = max(0, min(alpha, 30))
 
-    # ---- Adjust these thresholds to your signal range ----
-    alpha_threshold = 15
-    theta_threshold = 15
+    # Linear mapping: 0 → 2  and  30 → 20
+    min_size = 2
+    max_size = 20
+    size = min_size + (alpha / 30.0) * (max_size - min_size)
 
-    # Blue → strong alpha (close eyes)
-    if alpha > alpha_threshold and theta < theta_threshold:
-        return (0, 0, 255)
+    return int(size)
 
-    # Red → strong theta
-    elif theta > theta_threshold and alpha < alpha_threshold:
-        return (255, 0, 0)
 
-    # Orange → everything else (blend state)
-    else:
-        return (255, 140, 0)
+# --- Smooth Red ↔ Blue Gradient ---
+def alpha_to_color(alpha):
+    # Cap alpha between 0 and 30
+    alpha = max(0, min(alpha, 30))
+
+    # Normalize 0 → 1
+    t = alpha / 30.0
+
+    # Interpolate:
+    # Red (255,0,0) at alpha = 0
+    # Blue (0,0,255) at alpha = 30
+    red = int(255 * (1 - t))
+    blue = int(255 * t)
+
+    return (red, 0, blue)
 
 
 def eeg_listener():
@@ -46,15 +50,18 @@ def eeg_listener():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((UDP_IP, UDP_PORT))
     sock.settimeout(1.0)
+
     while True:
         try:
             data, addr = sock.recvfrom(BUFFER_SIZE)
             message = data.decode('ascii').strip()
             values = [float(x) for x in message.split(',')]
+
             if len(values) >= 63:
                 theta_value = values[57]
                 alpha_value = values[58]
                 beta_low_value = values[59]
+
         except socket.timeout:
             continue
         except Exception as e:
@@ -63,17 +70,17 @@ def eeg_listener():
 
 threading.Thread(target=eeg_listener, daemon=True).start()
 
+
 # --- Pygame setup ---
 pygame.init()
-width, height = 900, 600
+width, height = 800, 600
 screen = pygame.display.set_mode((width, height))
-pygame.display.set_caption("EEG Color Brush Art")
+pygame.display.set_caption("EEG Red-Blue Alpha Brush")
 
 clock = pygame.time.Clock()
 
 x, y = width // 2, height // 2
 angle = 0
-brush_size = 8
 screen.fill((255, 255, 255))
 
 running = True
@@ -88,8 +95,9 @@ while running:
                 pygame.image.save(screen, "eeg_brush_art.png")
                 print("Image saved as eeg_brush_art.png")
 
-    # --- Get restricted EEG color ---
-    color = eeg_to_color(theta_value, alpha_value)
+    # --- Color & Brush Size from Alpha ---
+    color = alpha_to_color(alpha_value)
+    brush_size = alpha_to_brush_size(alpha_value)
 
     # Movement
     speed = 1
